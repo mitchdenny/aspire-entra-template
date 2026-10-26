@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/aspire-output/
+**/.aspire/
+.vs/
+.idea/
+*.user
+*.suo
+.DS_Store
+TestResults/

@@ -1,0 +1,45 @@
+﻿<script type="module" src="@Assets["Components/Layout/NavMenu.razor.js"]"></script>
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Aspire-StarterApplication.1</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div id="nav-scrollable" class="nav-scrollable">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="counter">
+                <span class="bi bi-plus-square-fill" aria-hidden="true"></span> Counter
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="weather">
+                <span class="bi bi-list-nested" aria-hidden="true"></span> Weather
+            </NavLink>
+        </div>
+        <div class="nav-item px-3 text-white">
+            <AuthorizeView>
+                <Authorized>
+                    <p class="mt-3">Signed in as @context.User.Identity?.Name</p>
+                    <form method="post" action="/authentication/signout" data-enhance="false">
+                        <AntiforgeryToken />
+                        <button type="submit" class="btn btn-outline-light">Sign out</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a class="nav-link" href="/authentication/signin" data-enhance-nav="false">Sign in</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </nav>
+</div>

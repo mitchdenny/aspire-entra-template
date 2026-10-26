@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\XmlEncodedProjectName.ServiceDefaults\XmlEncodedProjectName.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Identity.Web" Version="4.16.1" />
+    <!-- Keep Identity.Web's transitive crypto dependencies on patched versions, including in test hosts. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" NoWarn="NU1510" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.14" NoWarn="NU1510" />
+  </ItemGroup>
+
+</Project>
