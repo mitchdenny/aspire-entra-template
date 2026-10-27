@@ -84,6 +84,12 @@ For unattended deployment, explicitly configure the suffix rather than sharing t
 default. The integration derives deployed callbacks from the frontend's Container Apps
 hostname, not the local development port.
 
+The frontend explicitly uses `.WithComputeEnvironment(env)`. Keep this binding even
+with only one environment: Entra resolves endpoint-based redirect URIs while constructing
+the deployment pipeline, before automatic compute-environment inference runs.
+`WithRedirectUris(web.GetEndpoint("https"), ...)` then uses the allocated HTTPS URL for
+local runs and the environment's deployed hostname for publishing and deployment.
+
 Only `webfrontend` has external ingress. `apiservice` accepts calls inside the Container
 Apps environment and is called server-side using service discovery. It does **not** validate
 user access tokens: network isolation is the boundary, not delegated API authorization.
@@ -104,8 +110,11 @@ design. Local development endpoints are accessible on the developer machine.
 - Authenticated pages are **not output-cached**. There is no shared Redis/output cache.
 - Container Apps terminates TLS. Forwarded headers retain ASP.NET Core's loopback-only
   trust defaults; arbitrary forwarded hosts/proxies are not trusted. In ACA, the
-  platform-injected `CONTAINER_APP_HOSTNAME` pins the request's public host and HTTPS
-  scheme so OIDC callbacks match the registration without trusting a changing proxy IP.
+  AppHost injects `Authentication__PublicOrigin` using the same compute-environment host
+  expression as the registration. This pins the request's public host and HTTPS scheme
+  without trusting a changing proxy IP. Do not use `CONTAINER_APP_HOSTNAME` for callbacks:
+  it contains a revision hostname (`webfrontend--0000002...`), not the stable app hostname
+  registered with Entra. Missing or invalid public-origin configuration fails startup in ACA.
   The starter uses the default ACA hostname; custom-domain callbacks require deliberate
   registration and canonical-origin changes.
 - The web app is limited to one replica for Blazor circuit routing. The generated ACA
@@ -132,8 +141,21 @@ dotnet run --project Aspire-StarterApplication.1.Tests
 
 The generated tests host only the frontend with test-only authentication, static OIDC
 discovery and a fake internal weather response. They check anonymous challenges,
-authenticated pages, POST/antiforgery logout and ACA HTTPS callback construction.
+authenticated pages, POST/antiforgery logout, stable ACA sign-in/sign-out callbacks
+despite a revision-specific platform hostname, and invalid public-origin configuration.
 They do not create registrations, contact Azure, or prove a real browser login.
+
+To check the template's deployment wiring from this repository, run:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+This generates an isolated app, runs `aspire deploy --list-steps` (which catches
+redirect resolution failures that `aspire publish` alone does not), and checks the
+published Bicep for both HTTPS callbacks derived from the Container Apps environment.
+It requires the daily CLI and .NET prerequisites above, but does not deploy resources
+or update app registrations.
 
 ## Cleanup
 

@@ -41,14 +41,26 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-if (builder.Configuration["CONTAINER_APP_HOSTNAME"] is { Length: > 0 } containerAppHostname)
+var publicOriginValue = builder.Configuration["Authentication:PublicOrigin"];
+if (publicOriginValue is null && builder.Configuration["CONTAINER_APP_HOSTNAME"] is { Length: > 0 })
 {
-    // ACA terminates TLS. Its platform-provided hostname is the registered public origin,
-    // independent of untrusted Host/X-Forwarded-* headers or the ingress proxy's changing IP.
+    throw new InvalidOperationException("Authentication:PublicOrigin must be configured when hosted in Azure Container Apps.");
+}
+
+if (publicOriginValue is not null)
+{
+    if (!Uri.TryCreate(publicOriginValue, UriKind.Absolute, out var publicOrigin)
+        || publicOrigin.Scheme != Uri.UriSchemeHttps || publicOrigin.AbsolutePath != "/"
+        || publicOrigin.Query.Length > 0 || publicOrigin.Fragment.Length > 0 || publicOrigin.UserInfo.Length > 0)
+    {
+        throw new InvalidOperationException("Authentication:PublicOrigin must be an absolute HTTPS origin without a path, query, fragment, or credentials.");
+    }
+
+    // Use the same stable origin as the registration, not ACA's revision-specific hostname.
     app.Use((context, next) =>
     {
         context.Request.Scheme = "https";
-        context.Request.Host = new HostString(containerAppHostname);
+        context.Request.Host = new HostString(publicOrigin.Authority);
         return next(context);
     });
 }

@@ -46,6 +46,11 @@
       "target": "./",
       "modifiers": [
         {
+          "exclude": [
+            "tests/**/*"
+          ]
+        },
+        {
           "condition": "(TestFx == None)",
           "exclude": [
             "Aspire-StarterApplication.1.Tests/**/*.*"

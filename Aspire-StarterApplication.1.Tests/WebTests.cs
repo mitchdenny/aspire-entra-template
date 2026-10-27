@@ -132,6 +132,44 @@ public class WebTests
         AssertStatus(HttpStatusCode.Redirect, response);
         AssertContains("redirect_uri=https%3A%2F%2Fwebfrontend.example.azurecontainerapps.io%2Fsignin-oidc",
             response.Headers.Location!.AbsoluteUri);
+
+        using var signedInClient = CreateClient(factory, signedIn: true);
+        signedInClient.DefaultRequestHeaders.Host = "untrusted.example";
+        var html = await signedInClient.GetStringAsync("/", TestCancellationToken);
+        var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        using var signout = await signedInClient.PostAsync("/authentication/signout",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }), TestCancellationToken);
+        AssertStatus(HttpStatusCode.Redirect, signout);
+        AssertContains("post_logout_redirect_uri=https%3A%2F%2Fwebfrontend.example.azurecontainerapps.io%2Fsignout-callback-oidc",
+            signout.Headers.Location!.AbsoluteUri);
+    }
+
+#if (TestFx == "MSTest")
+    [TestMethod]
+#elif (TestFx == "NUnit")
+    [Test]
+#elif (TestFx == "xUnit.net")
+    [Fact]
+#endif
+    public void ContainerAppsRejectsMissingOrInvalidPublicOrigins()
+    {
+        foreach (var origin in new string?[]
+        {
+            null, "", "http://web.example", "/relative", "https://web.example/path",
+            "https://web.example?query=value", "https://web.example/#fragment", "https://user@web.example"
+        })
+        {
+            using var factory = new AuthWebApplicationFactory(containerApps: true, publicOrigin: origin);
+            try
+            {
+                using var client = CreateClient(factory);
+                throw new Exception("An invalid public origin was accepted.");
+            }
+            catch (InvalidOperationException exception)
+            {
+                AssertContains("Authentication:PublicOrigin", exception.Message);
+            }
+        }
     }
 
     private static HttpClient CreateClient(AuthWebApplicationFactory factory, bool signedIn = false)
@@ -171,7 +209,8 @@ public class WebTests
     }
 }
 
-internal sealed class AuthWebApplicationFactory(bool containerApps = false) : WebApplicationFactory<Program>
+internal sealed class AuthWebApplicationFactory(bool containerApps = false,
+    string? publicOrigin = "https://webfrontend.example.azurecontainerapps.io") : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -181,7 +220,8 @@ internal sealed class AuthWebApplicationFactory(bool containerApps = false) : We
             ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
             ["AzureAd:TenantId"] = "11111111-1111-1111-1111-111111111111",
             ["AzureAd:ClientId"] = "22222222-2222-2222-2222-222222222222",
-            ["CONTAINER_APP_HOSTNAME"] = containerApps ? "webfrontend.example.azurecontainerapps.io" : null
+            ["CONTAINER_APP_HOSTNAME"] = containerApps ? "webfrontend--0000002.example.azurecontainerapps.io" : null,
+            ["Authentication:PublicOrigin"] = containerApps ? publicOrigin : null
         }));
         builder.ConfigureTestServices(services =>
         {

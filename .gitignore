@@ -8,3 +8,4 @@
 *.suo
 .DS_Store
 TestResults/
+**/__pycache__/
